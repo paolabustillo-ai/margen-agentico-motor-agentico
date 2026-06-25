@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Margen Agéntico — Motor Agéntico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <span class="tb-brand">Motor Agéntico</span>
+    <span class="tb-sub">/IMPERIO</span>
+    <span class="tb-dot">·</span>
+    <span class="tb-user">general@motor-agéntico</span>
+    <span class="tb-sep">:</span>
+    <span class="tb-tilde">~</span>
+    <span class="tb-prompt">$</span>
+    <span class="tb-path">~/margen</span>
+  </div>
+
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sb-section">// operación</div>
+      <div class="sb-item">⌂ Inicio</div>
+      <div class="sb-item">✦ Skills</div>
+      <div class="sb-item">◈ Memoria</div>
+      <div class="sb-item">◎ Actividad</div>
+      <div class="sb-section">// negocio</div>
+      <div class="sb-item active">⬡ Margen <span class="sb-badge">NEW</span></div>
+      <div class="sb-section">// asistentes</div>
+      <div class="sb-agent sb-agent-hermes">HERMES-AGENT</div>
+      <div class="sb-section">// sistema</div>
+      <div class="sb-item">⚙ Configuración</div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main">
+
+      <div class="sec-head">
+        <span class="sec-label">// margen agéntico</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="sec-title">Precio mínimo rentable</div>
+      <div class="sec-sub">El Motor ya sabe cuánto gastaste en IA. Aquí decides cuánto cobrar para no perder dinero.</div>
+
+      <!-- Modo demo -->
+      <div class="preset-bar">
+        <span class="preset-label">MODO DEMO</span>
+        <button class="preset-btn" id="btn-principiante" onclick="loadPreset('principiante')">▸ principiante</button>
+        <button class="preset-btn" id="btn-intermedio"   onclick="loadPreset('intermedio')">▸ intermedio</button>
+        <button class="preset-btn" id="btn-avanzado"     onclick="loadPreset('avanzado')">▸ avanzado</button>
+        <button class="preset-btn" onclick="restaurarDemo()">↺ restaurar demo</button>
+        <button class="preset-clear" onclick="clearPreset()">✕ limpiar</button>
+      </div>
+
+      <!-- Inputs -->
+      <div class="input-panel">
+        <div class="panel-grid">
+
+          <!-- Columna 1: Proyecto -->
+          <div>
+            <div class="panel-col-head">▸ proyecto</div>
+            <div class="inp-g">
+              <label for="inp-precio">Precio que pienso cobrar ($)</label>
+              <input type="number" id="inp-precio" value="500" min="0" step="10" />
+            </div>
+            <div class="inp-g">
+              <label for="inp-costo-ia">Costo IA asignado al proyecto ($)</label>
+              <input type="number" id="inp-costo-ia" value="20" min="0" step="1" />
+              <span class="inp-note">MVP: manual/simulado · Futuro: leído desde Motor Agéntico cuando haya asignación clara</span>
+            </div>
+            <div class="inp-g">
+              <label for="inp-horas">Horas estimadas (h)</label>
+              <input type="number" id="inp-horas" value="8" min="0" step="0.5" />
+            </div>
+            <div class="inp-g">
+              <label for="inp-tarifa">Tarifa por hora ($/h)</label>
+              <input type="number" id="inp-tarifa" value="25" min="0" step="5" />
+            </div>
+          </div>
+
+          <!-- Columna 2: Costos -->
+          <div>
+            <div class="panel-col-head">▸ costos</div>
+            <div class="inp-g">
+              <label for="inp-otros-costos">Otros costos del proyecto ($)</label>
+              <input type="number" id="inp-otros-costos" value="0" min="0" step="5" />
+            </div>
+            <div class="inp-g">
+              <label for="inp-costos-fijos">Costos fijos mensuales ($)</label>
+              <input type="number" id="inp-costos-fijos" value="200" min="0" step="10" />
+            </div>
+            <div class="inp-g">
+              <label for="inp-proyectos-mes">Proyectos estimados al mes (#)</label>
+              <input type="number" id="inp-proyectos-mes" value="4" min="1" step="1" />
+            </div>
+          </div>
+
+          <!-- Columna 3: Configuración -->
+          <div>
+            <div class="panel-col-head">▸ configuración</div>
+            <div class="inp-g">
+              <label for="inp-comision">Comisión de plataforma (%)</label>
+              <input type="number" id="inp-comision" value="5" min="0" max="99" step="1" />
+            </div>
+            <div class="inp-g">
+              <label for="inp-impuestos">Impuestos / retenciones (%)</label>
+              <input type="number" id="inp-impuestos" value="20" min="0" max="99" step="1" />
+              <span class="inp-note">⚠ Simulación financiera, no asesoría tributaria. Verifica tasas con un contador.</span>
+            </div>
+            <div class="inp-g">
+              <label for="inp-margen-deseado">Margen deseado (%)</label>
+              <input type="number" id="inp-margen-deseado" value="30" min="0" max="99" step="5" />
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Métricas principales -->
+      <div class="metrics-grid">
+        <div class="mc">
+          <div class="mc-label">$ precio cobrado</div>
+          <div class="mc-val white" id="v-precio">—</div>
+          <div class="mc-sub">ingreso bruto del proyecto</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">⚡ costo IA</div>
+          <div class="mc-val" id="v-ia">—</div>
+          <div class="mc-sub" id="v-ia-sub">costo IA del proyecto</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">◎ margen real</div>
+          <div class="mc-val" id="v-margen">—</div>
+          <div class="mc-sub" id="v-margen-sub">% del ingreso</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">◈ costo IA / ingreso</div>
+          <div class="mc-val" id="v-iapct">—</div>
+          <div class="sem g" id="v-sem"><span class="sem-dot"></span> calculando</div>
+        </div>
+      </div>
+
+      <!-- Precio mínimo rentable + desglose -->
+      <div class="bracket-card">
+
+        <div class="pmin-row">
+          <div>
+            <div class="pmin-label">⌘ precio mínimo rentable</div>
+            <div class="pmin-val-row">
+              <span class="pmin-val" id="v-pmin">—</span>
+              <span class="pmin-sub">para cubrir costos + <span id="v-pmin-pct">—</span>% de margen</span>
+            </div>
+            <div class="pmin-diff" id="v-diff">—</div>
+          </div>
+          <div class="pmin-pill-wrap">
+            <span class="pill py" id="v-pill">● calculando</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="breakdown-title">▸ desglose de costos del proyecto</div>
+
+        <div class="breakdown-row">
+          <span class="breakdown-name">⚡ Costo IA</span>
+          <span class="breakdown-amt" id="v-costo-ia-b">—</span>
+          <div class="breakdown-wrap"><div class="breakdown-bar bar-ia" id="bar-ia" style="width:0%"></div></div>
+          <span class="breakdown-pct" id="pct-ia">0%</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="breakdown-name">◉ Costo humano</span>
+          <span class="breakdown-amt" id="v-costo-humano">—</span>
+          <div class="breakdown-wrap"><div class="breakdown-bar bar-human" id="bar-human" style="width:0%"></div></div>
+          <span class="breakdown-pct" id="pct-human">0%</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="breakdown-name">◫ Costos fijos proporcionales</span>
+          <span class="breakdown-amt" id="v-costo-fijo">—</span>
+          <div class="breakdown-wrap"><div class="breakdown-bar bar-fixed" id="bar-fixed" style="width:0%"></div></div>
+          <span class="breakdown-pct" id="pct-fixed">0%</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="breakdown-name">◌ Otros costos</span>
+          <span class="breakdown-amt" id="v-otros-b">—</span>
+          <div class="breakdown-wrap"><div class="breakdown-bar bar-otros" id="bar-otros" style="width:0%"></div></div>
+          <span class="breakdown-pct" id="pct-otros">0%</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="breakdown-name">⊖ Comisión de plataforma</span>
+          <span class="breakdown-amt" id="v-comision-real">—</span>
+          <div class="breakdown-wrap"><div class="breakdown-bar bar-comision" id="bar-comision" style="width:0%"></div></div>
+          <span class="breakdown-pct" id="pct-comision">0%</span>
+        </div>
+        <div class="breakdown-row">
+          <span class="breakdown-name">⊘ Impuestos / retenciones</span>
+          <span class="breakdown-amt" id="v-impuestos-real">—</span>
+          <div class="breakdown-wrap"><div class="breakdown-bar bar-impuestos" id="bar-impuestos" style="width:0%"></div></div>
+          <span class="breakdown-pct" id="pct-impuestos">0%</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="cost-summary">
+          <span>Costo base: <strong id="v-costo-base">—</strong></span>
+          <span>Total deducible (c/comisión + impuestos): <strong id="v-total-costos">—</strong></span>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Statusbar -->
+  <div class="statusbar">
+    <span><span class="online">● online</span> · local · ~/margen</span>
+    <span id="v-motor-status" class="motor-status motor-offline">○ Motor offline · modo manual</span>
+    <span id="v-statusbar-right">—</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
