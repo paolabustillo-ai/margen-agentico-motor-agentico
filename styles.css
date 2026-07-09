@@ -157,6 +157,42 @@ body {
 }
 .preset-clear:hover { color: var(--muted); }
 
+.currency-select {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--gold);
+  padding: 3px 8px;
+  font-size: 10px;
+  font-family: var(--mono);
+  border-radius: 2px;
+  cursor: pointer;
+  outline: none;
+}
+.currency-select:hover,
+.currency-select:focus { border-color: var(--gold-dim); }
+
+.currency-custom {
+  width: 52px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--gold);
+  padding: 3px 6px;
+  font-size: 10px;
+  font-family: var(--mono);
+  border-radius: 2px;
+  outline: none;
+  text-transform: uppercase;
+}
+.currency-custom:focus { border-color: var(--gold); }
+
+.currency-note {
+  font-size: 9px;
+  color: var(--muted2);
+  white-space: nowrap;
+}
+
+.hidden { display: none !important; }
+
 /* ── Input panel ─────────────────────────────────────── */
 .input-panel {
   background: var(--bg3);
@@ -266,6 +302,8 @@ body {
 .pmin-label { font-size: 8px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
 .pmin-val-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .pmin-val  { font-size: 26px; font-weight: 700; color: var(--gold); }
+.pmin-val.green { color: var(--green); }
+.pmin-val.red   { color: var(--red); }
 .pmin-sub  { font-size: 11px; color: var(--muted); }
 .pmin-diff { font-size: 11px; margin-top: 5px; }
 .pmin-pill-wrap { padding-top: 4px; flex-shrink: 0; }

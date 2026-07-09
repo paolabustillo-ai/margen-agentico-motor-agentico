@@ -56,6 +56,37 @@
         <button class="preset-btn" id="btn-intermedio"   onclick="loadPreset('intermedio')">▸ intermedio</button>
         <button class="preset-btn" id="btn-avanzado"     onclick="loadPreset('avanzado')">▸ avanzado</button>
         <button class="preset-btn" onclick="restaurarDemo()">↺ restaurar demo</button>
+        <select id="inp-currency" class="currency-select" title="Moneda de visualización (no convierte tasas)">
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="COP">COP</option>
+          <option value="MXN">MXN</option>
+          <option value="ARS">ARS</option>
+          <option value="CLP">CLP</option>
+          <option value="PEN">PEN</option>
+          <option value="BOB">BOB</option>
+          <option value="BRL">BRL</option>
+          <option value="UYU">UYU</option>
+          <option value="PYG">PYG</option>
+          <option value="VES">VES</option>
+          <option value="CRC">CRC</option>
+          <option value="GTQ">GTQ</option>
+          <option value="HNL">HNL</option>
+          <option value="NIO">NIO</option>
+          <option value="PAB">PAB</option>
+          <option value="DOP">DOP</option>
+          <option value="CAD">CAD</option>
+          <option value="GBP">GBP</option>
+          <option value="CHF">CHF</option>
+          <option value="AUD">AUD</option>
+          <option value="NZD">NZD</option>
+          <option value="JPY">JPY</option>
+          <option value="OTRA">Otra moneda…</option>
+        </select>
+        <input type="text" id="inp-currency-custom" class="currency-custom hidden"
+               placeholder="COD" maxlength="3"
+               title="Código ISO 4217 de 3 letras, ej: SEK, NOK, AED" />
+        <span id="v-currency-note" class="currency-note hidden">ℹ Código ISO 4217 de 3 letras. Si no tiene símbolo reconocido, se mostrará como código + valor.</span>
         <button class="preset-clear" onclick="clearPreset()">✕ limpiar</button>
       </div>
 
@@ -212,6 +243,42 @@
           <span>Total deducible (c/comisión + impuestos): <strong id="v-total-costos">—</strong></span>
         </div>
 
+      </div>
+
+      <!-- Soporte mensual — módulo independiente -->
+      <div class="sec-head" style="margin-top:18px;">
+        <span class="sec-label">// soporte mensual · módulo independiente</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="sec-sub">Evaluación de la cuota de soporte/mantenimiento mensual. No se mezcla con el precio mínimo rentable del proyecto.</div>
+
+      <div class="input-panel input-panel-soporte">
+        <div class="panel-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="inp-g">
+            <label for="inp-soporte-cobrado">Cuota de soporte mensual pensada a cobrar ($)</label>
+            <input type="number" id="inp-soporte-cobrado" value="80" min="0" step="5" />
+          </div>
+          <div class="inp-g">
+            <label for="inp-soporte-costo">Costo operativo mensual del soporte ($)</label>
+            <input type="number" id="inp-soporte-costo" value="30" min="0" step="5" />
+          </div>
+        </div>
+      </div>
+
+      <div class="bracket-card">
+        <div class="pmin-row">
+          <div>
+            <div class="pmin-label">◈ soporte mensual — margen estimado</div>
+            <div class="pmin-val-row">
+              <span class="pmin-val" id="v-soporte-margen">—</span>
+              <span class="pmin-sub"><span id="v-soporte-margen-pct">—</span>% del ingreso de soporte</span>
+            </div>
+            <div class="pmin-diff">Cobrado: <strong id="v-soporte-cobrado">—</strong> · Costo operativo: <strong id="v-soporte-costo">—</strong></div>
+          </div>
+          <div class="pmin-pill-wrap">
+            <span class="pill py" id="v-soporte-pill">● calculando</span>
+          </div>
+        </div>
       </div>
 
     </main>

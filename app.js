@@ -3,6 +3,42 @@
 
   var STORAGE_KEY = 'margen-agentico-v1';
 
+  // ── Multimoneda (v1.2 / v1.3) ─────────────────────────────────────────────
+  // Solo afecta el FORMATO de los valores mostrados (símbolo/agrupación/locale).
+  // No hay conversión de tasas: 1 unidad ingresada = 1 unidad mostrada.
+  var CURRENCY_LOCALES = {
+    USD: 'en-US',
+    EUR: 'es-ES',
+    COP: 'es-CO',
+    MXN: 'es-MX',
+    ARS: 'es-AR',
+    CLP: 'es-CL',
+    PEN: 'es-PE',
+    BOB: 'es-BO',
+    BRL: 'pt-BR',
+    UYU: 'es-UY',
+    PYG: 'es-PY',
+    VES: 'es-VE',
+    CRC: 'es-CR',
+    GTQ: 'es-GT',
+    HNL: 'es-HN',
+    NIO: 'es-NI',
+    PAB: 'es-PA',
+    DOP: 'es-DO',
+    CAD: 'en-CA',
+    GBP: 'en-GB',
+    CHF: 'de-CH',
+    AUD: 'en-AU',
+    NZD: 'en-NZ',
+    JPY: 'ja-JP'
+  };
+  var DEFAULT_CURRENCY      = 'USD';
+  var CUSTOM_CURRENCY_VALUE = 'OTRA'; // valor especial del <select> para "Otra moneda"
+  var currentCurrency       = DEFAULT_CURRENCY;
+
+  // ── Demo de soporte mensual (v1.2) ────────────────────────────────────────
+  var DEMO_SOPORTE = { soporteCobrado: 80, soporteCosto: 30 };
+
   // ── Presets (modo demo) ───────────────────────────────────────────────────
   // principiante → pérdida  |  intermedio → revisar  |  avanzado → rentable
   var PRESETS = {
@@ -29,8 +65,54 @@
   // ── DOM helpers ───────────────────────────────────────────────────────────
   function el(id)         { return document.getElementById(id); }
   function setText(id, t) { var n = el(id); if (n) n.textContent = t; }
-  function fmt(n)         { return (n < 0 ? '−$' : '$') + Math.round(Math.abs(n)); }
   function fmtPct(n)      { return n.toFixed(1) + '%'; }
+
+  // Formatea un monto en la moneda seleccionada (solo presentación).
+  // Fallback simple "$codigo valor" si el navegador no soporta el código de moneda.
+  function fmt(n) {
+    try {
+      return new Intl.NumberFormat(CURRENCY_LOCALES[currentCurrency] || 'en-US', {
+        style: 'currency',
+        currency: currentCurrency,
+        maximumFractionDigits: 0
+      }).format(n);
+    } catch (e) {
+      return (n < 0 ? '-' : '') + currentCurrency + ' ' + Math.round(Math.abs(n));
+    }
+  }
+
+  // ── Moneda personalizada ("Otra moneda") ──────────────────────────────────
+  // Nota: Intl.NumberFormat valida que el código tenga forma de moneda (3 letras),
+  // no que exista realmente en el registro ISO 4217. Por eso NO se intenta "detectar"
+  // códigos inválidos: cualquier código de 3 letras se acepta y se usa tal cual.
+  // Si el código no tiene símbolo reconocido, Intl.NumberFormat ya cae por sí solo
+  // a mostrar el propio código como prefijo (ej. "ZZZ 100"), sin lanzar error.
+
+  // Solo letras, mayúsculas, máximo 3 caracteres (código ISO 4217).
+  function sanitizeCurrencyCode(raw) {
+    return (raw || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+  }
+
+  // Recalcula currentCurrency a partir del <select> + input personalizado,
+  // y muestra/oculta el campo de código manual y su nota informativa.
+  function syncCurrencySelection() {
+    var sel    = el('inp-currency');
+    var custom = el('inp-currency-custom');
+    var note   = el('v-currency-note');
+    if (!sel) return;
+
+    var isCustom = sel.value === CUSTOM_CURRENCY_VALUE;
+    if (custom) custom.classList.toggle('hidden', !isCustom);
+    if (note)   note.classList.toggle('hidden', !isCustom);
+
+    if (isCustom) {
+      var code = sanitizeCurrencyCode(custom ? custom.value : '');
+      if (custom && custom.value !== code) custom.value = code;
+      currentCurrency = code.length === 3 ? code : DEFAULT_CURRENCY;
+    } else {
+      currentCurrency = sel.value || DEFAULT_CURRENCY;
+    }
+  }
 
   // ── Motor Agéntico — lectura local opcional (solo lectura) ────────────────
   // Si el Motor no está corriendo, la app continúa en modo manual sin errores.
@@ -135,6 +217,42 @@
     };
   }
 
+  // ── Módulo independiente: soporte / mantenimiento mensual (v1.2) ──────────
+  // NO se mezcla con costoBase ni con el precio mínimo rentable del proyecto.
+  // Reutiliza los mismos % de comisión, impuestos y margen deseado configurados
+  // en el panel de configuración, pero se evalúa por separado.
+  function getSoporteInputs() {
+    return {
+      soporteCobrado: parseFloat(el('inp-soporte-cobrado').value) || 0,
+      soporteCosto  : parseFloat(el('inp-soporte-costo').value)   || 0,
+      comision      : parseFloat(el('inp-comision').value)        || 0,
+      impuestos     : parseFloat(el('inp-impuestos').value)       || 0,
+      margenDeseado : parseFloat(el('inp-margen-deseado').value)  || 0
+    };
+  }
+
+  function calculateSoporte(s) {
+    var comisionSoporte = s.soporteCobrado * (s.comision / 100);
+    var impuestoSoporte = s.soporteCobrado * (s.impuestos / 100);
+
+    var margenSoporteReal = s.soporteCobrado - s.soporteCosto - comisionSoporte - impuestoSoporte;
+    var porcentajeMargenSoporte = s.soporteCobrado > 0 ? (margenSoporteReal / s.soporteCobrado) * 100 : 0;
+
+    var estadoSoporte;
+    if      (margenSoporteReal <= 0)                          estadoSoporte = 'pérdida en soporte';
+    else if (porcentajeMargenSoporte < s.margenDeseado)       estadoSoporte = 'revisar soporte';
+    else                                                      estadoSoporte = 'soporte rentable';
+
+    return {
+      s,
+      comisionSoporte,
+      impuestoSoporte,
+      margenSoporteReal,
+      porcentajeMargenSoporte,
+      estadoSoporte
+    };
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   function setBar(barId, pctId, value, total) {
     var pct = total > 0 ? Math.min((value / total) * 100, 100) : 0;
@@ -221,6 +339,25 @@
     setBar('bar-impuestos', 'pct-impuestos', r.impuestosValor,     t);
   }
 
+  function renderSoporte(rs) {
+    setText('v-soporte-cobrado', fmt(rs.s.soporteCobrado));
+    setText('v-soporte-costo',   fmt(rs.s.soporteCosto));
+
+    var vm = el('v-soporte-margen');
+    if (vm) {
+      vm.textContent = fmt(rs.margenSoporteReal);
+      vm.className   = 'pmin-val ' + (rs.margenSoporteReal > 0 ? 'green' : 'red');
+    }
+    setText('v-soporte-margen-pct', fmtPct(rs.porcentajeMargenSoporte));
+
+    var pill = el('v-soporte-pill');
+    if (pill) {
+      if      (rs.estadoSoporte === 'soporte rentable') { pill.className = 'pill pv'; pill.textContent = '● Soporte rentable'; }
+      else if (rs.estadoSoporte === 'revisar soporte')  { pill.className = 'pill py'; pill.textContent = '● Revisar soporte'; }
+      else                                              { pill.className = 'pill pr'; pill.textContent = '● Pérdida en soporte'; }
+    }
+  }
+
   // ── Estado de conexión con el Motor ──────────────────────────────────────
   function setMotorStatus(connected) {
     var s = el('v-motor-status');
@@ -241,6 +378,14 @@
       document.querySelectorAll('.input-panel input').forEach(function (node) {
         vals[node.id] = node.value;
       });
+      var cur = el('inp-currency');
+      if (cur) vals['inp-currency'] = cur.value;
+      var curCustom = el('inp-currency-custom');
+      if (curCustom) vals['inp-currency-custom'] = curCustom.value;
+      var sc = el('inp-soporte-cobrado');
+      if (sc) vals['inp-soporte-cobrado'] = sc.value;
+      var sco = el('inp-soporte-costo');
+      if (sco) vals['inp-soporte-costo'] = sco.value;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(vals));
     } catch (e) {}
   }
@@ -276,6 +421,7 @@
   // ── Main recalc ───────────────────────────────────────────────────────────
   function recalc() {
     render(calculate(getInputs()));
+    renderSoporte(calculateSoporte(getSoporteInputs()));
     saveToStorage();
   }
 
@@ -313,18 +459,56 @@
   }
 
   // Limpia valores guardados y carga el preset principiante como punto de partida.
+  // También restaura moneda y valores demo del módulo de soporte.
   function restaurarDemo() {
     clearStorage();
     loadPreset('principiante');
+
+    var sc  = el('inp-soporte-cobrado');
+    var sco = el('inp-soporte-costo');
+    if (sc)  sc.value  = DEMO_SOPORTE.soporteCobrado;
+    if (sco) sco.value = DEMO_SOPORTE.soporteCosto;
+
+    var cur    = el('inp-currency');
+    var custom = el('inp-currency-custom');
+    if (cur)    cur.value    = DEFAULT_CURRENCY;
+    if (custom) custom.value = '';
+    syncCurrencySelection();
+
+    recalc();
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.input-panel input').forEach(function (input) {
+    // Solo los campos del proyecto limpian el preset activo. El panel de
+    // soporte (.input-panel-soporte) es un módulo independiente y no debe afectarlo.
+    document.querySelectorAll('.input-panel:not(.input-panel-soporte) input').forEach(function (input) {
       input.addEventListener('input', function () {
         clearPreset();
         recalc();
       });
+    });
+
+    // Moneda: cambia el formato de los valores mostrados, no altera cálculos.
+    var currencySelect = el('inp-currency');
+    var currencyCustom = el('inp-currency-custom');
+    if (currencySelect) {
+      currencySelect.addEventListener('change', function () {
+        syncCurrencySelection();
+        recalc();
+      });
+    }
+    if (currencyCustom) {
+      currencyCustom.addEventListener('input', function () {
+        syncCurrencySelection();
+        recalc();
+      });
+    }
+
+    // Soporte mensual: módulo independiente, no limpia el preset del proyecto.
+    ['inp-soporte-cobrado', 'inp-soporte-costo'].forEach(function (id) {
+      var node = el(id);
+      if (node) node.addEventListener('input', recalc);
     });
 
     updateClock();
@@ -332,6 +516,7 @@
 
     // Restaurar última sesión desde localStorage; si no hay, usar valores por defecto del HTML
     var hadStoredValues = loadFromStorage();
+    syncCurrencySelection();
     recalc();
 
     // Intentar conectar con Motor Agéntico (no bloquea, falla silenciosamente)
