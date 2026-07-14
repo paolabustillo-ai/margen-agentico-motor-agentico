@@ -116,41 +116,91 @@
 
   // ── Motor Agéntico — lectura local opcional (solo lectura) ────────────────
   // Si el Motor no está corriendo, la app continúa en modo manual sin errores.
+  // Nunca colapsa todo a null: devuelve un estado explícito para que la UI
+  // distinga "Motor inalcanzable" de "endpoint no expuesto" de "respondió con
+  // datos inválidos" de "conectado".
+  //
+  // ESTADO CONFIRMADO EN ESTA INSTALACIÓN (verificado en navegador): las rutas
+  // /_live-data, /api/live-data y /data devuelven 404. No hay endpoint público
+  // estable confirmado hoy. Motor Agéntico sí muestra datos por run/workspace
+  // en su propia UI — pero Margen Agéntico no tiene, hoy, una forma confirmada
+  // de leerlos por HTTP. El código de mapeo de abajo queda preparado para
+  // cuando el Motor exponga ese endpoint; hasta entonces, la integración
+  // automática está inactiva y la app opera en modo manual.
+  var MOTOR_ENDPOINT = 'http://localhost:8081/_live-data';
+
   function obtenerDatosMotor() {
     var controller = new AbortController();
     var tid = setTimeout(function () { controller.abort(); }, 3000);
-    return fetch('http://localhost:8081/_live-data', {
+    return fetch(MOTOR_ENDPOINT, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       signal: controller.signal
     })
       .then(function (res) {
         clearTimeout(tid);
-        if (!res.ok) return null;
+        // 404 = el Motor respondió pero esta ruta no existe (caso confirmado
+        // hoy). Se distingue de otros fallos porque no es "Motor apagado".
+        if (res.status === 404) return { status: 'endpoint_no_expuesto', data: null };
+        if (!res.ok) return { status: 'no_disponible', data: null };
         return res.json()
           .then(function (data) {
-            if (!data || typeof data !== 'object') return null;
-            return data;
+            if (!data || typeof data !== 'object') return { status: 'respuesta_invalida', data: null };
+            return { status: 'conectado', data: data };
           })
-          .catch(function () { return null; });
+          .catch(function () { return { status: 'respuesta_invalida', data: null }; });
       })
       .catch(function () {
         clearTimeout(tid);
-        return null;
+        return { status: 'no_disponible', data: null };
       });
   }
 
-  // ── Costo IA asignado al proyecto ─────────────────────────────────────────
-  // Cuando el Motor entrega datos, distribuye el costo IA mensual
-  // entre los proyectos estimados del mes.
-  // Si no hay datos suficientes, devuelve el fallback (valor manual).
-  function calcularCostoIAAsignadoProyecto(datos, proyectosMes, fallback) {
-    if (!datos) return fallback;
-    var suscripciones = parseFloat(datos.costoSuscripcionesMensuales) || 0;
-    var tokens        = parseFloat(datos.costoAcumuladoTokensAPI)     || 0;
-    var totalIA       = suscripciones + tokens;
-    if (totalIA <= 0) return fallback;
-    return totalIA / Math.max(proyectosMes, 1);
+  // ── Mapeo del schema real de /_live-data (confirmado, no inventado) ───────
+  // Campos usados: subscriptions[].monthlyPrice, runs[].cost, runs[].workspace.
+  // Campos que existen en el schema pero NO se usan en ningún cálculo:
+  // usage, usage.claudeWindow, modelUsage, daily, recentProjects — son solo
+  // informativos y se dejan fuera a propósito para no inventar lógica sobre
+  // una forma de datos no confirmada, y para evitar doble conteo.
+  //
+  // costoSuscripcionesMensuales / costoAcumuladoTokensAPI NO existen en el
+  // Motor real — eliminados (eran nombres de campo inventados en v1.x).
+
+  // Suma subscriptions[].monthlyPrice. Soporta tanto array como objeto-mapa.
+  // Alimenta "Costos mensuales de herramientas" — NUNCA el costo IA del proyecto.
+  function extraerCostosFijosDeSubscripciones(datos) {
+    if (!datos || !datos.subscriptions) return null;
+    var subs = datos.subscriptions;
+    var lista = Array.isArray(subs) ? subs : Object.keys(subs).map(function (k) { return subs[k]; });
+    var total = 0;
+    var encontrado = false;
+    lista.forEach(function (s) {
+      if (s && typeof s.monthlyPrice === 'number') {
+        total += s.monthlyPrice;
+        encontrado = true;
+      }
+    });
+    return encontrado ? total : null;
+  }
+
+  // Suma runs[].cost cuyo runs[].workspace coincide con el workspace/carpeta
+  // que el usuario indicó para este proyecto (Margen no tiene otra forma de
+  // saber "cuál proyecto" es este). Alimenta "Costo IA asignado al proyecto"
+  // — NUNCA "Costos mensuales de herramientas" (evita doble conteo).
+  function extraerCostoIADeRuns(datos, workspaceNombre) {
+    if (!datos || !Array.isArray(datos.runs) || !workspaceNombre) return null;
+    var nombre = String(workspaceNombre).trim().toLowerCase();
+    if (!nombre) return null;
+    var total = 0;
+    var encontrado = false;
+    datos.runs.forEach(function (run) {
+      if (!run || !run.workspace || typeof run.cost !== 'number') return;
+      if (String(run.workspace).toLowerCase().indexOf(nombre) !== -1) {
+        total += run.cost;
+        encontrado = true;
+      }
+    });
+    return encontrado ? total : null;
   }
 
   // ── Read all inputs ───────────────────────────────────────────────────────
@@ -359,16 +409,26 @@
   }
 
   // ── Estado de conexión con el Motor ──────────────────────────────────────
-  function setMotorStatus(connected) {
+  var MOTOR_STATUS_TEXT = {
+    no_disponible           : '○ Motor no disponible: modo manual',
+    endpoint_no_expuesto    : '○ Endpoint no expuesto: modo manual',
+    respuesta_invalida      : '○ Respuesta inválida: modo manual',
+    conectado_con_datos     : '● Motor conectado: usando datos del Motor',
+    conectado_sin_workspace : '● Motor conectado: sin workspace claro, usando modo manual'
+  };
+  var MOTOR_STATUS_CLASS = {
+    no_disponible           : 'motor-status motor-offline',
+    endpoint_no_expuesto    : 'motor-status motor-offline',
+    respuesta_invalida      : 'motor-status motor-offline',
+    conectado_con_datos     : 'motor-status motor-online',
+    conectado_sin_workspace : 'motor-status motor-partial'
+  };
+
+  function setMotorStatus(estado) {
     var s = el('v-motor-status');
     if (!s) return;
-    if (connected) {
-      s.className   = 'motor-status motor-online';
-      s.textContent = '● Motor conectado';
-    } else {
-      s.className   = 'motor-status motor-offline';
-      s.textContent = '○ Motor offline · modo manual';
-    }
+    s.className   = MOTOR_STATUS_CLASS[estado] || 'motor-status motor-offline';
+    s.textContent = MOTOR_STATUS_TEXT[estado]  || '○ Motor offline · modo manual';
   }
 
   // ── Persistencia local (localStorage) ────────────────────────────────────
@@ -459,7 +519,8 @@
   }
 
   // Limpia valores guardados y carga el preset principiante como punto de partida.
-  // También restaura moneda y valores demo del módulo de soporte.
+  // También restaura moneda, valores demo del módulo de soporte, y las notas/campo
+  // de integración con el Motor (workspace, notas dinámicas de costo IA/costos fijos).
   function restaurarDemo() {
     clearStorage();
     loadPreset('principiante');
@@ -474,6 +535,13 @@
     if (cur)    cur.value    = DEFAULT_CURRENCY;
     if (custom) custom.value = '';
     syncCurrencySelection();
+
+    var wsField = el('inp-motor-workspace');
+    if (wsField) wsField.value = '';
+    var notaIA = el('v-costo-ia-note');
+    if (notaIA) notaIA.textContent = 'MVP: manual/simulado · Futuro: leído desde Motor Agéntico cuando haya asignación clara';
+    var notaFijos = el('v-costos-fijos-note');
+    if (notaFijos) notaFijos.classList.add('hidden');
 
     recalc();
   }
@@ -511,6 +579,26 @@
       if (node) node.addEventListener('input', recalc);
     });
 
+    // Workspace del Motor: si ya llegaron datos del Motor, cada cambio re-evalúa
+    // el match contra runs[].workspace en vivo (sin volver a pedir la red).
+    var workspaceField = el('inp-motor-workspace');
+    if (workspaceField) {
+      workspaceField.addEventListener('input', function () {
+        if (!motorData) return;
+        var costoIASugerido = extraerCostoIADeRuns(motorData, workspaceField.value);
+        if (costoIASugerido !== null && costoIASugerido > 0) {
+          var inpIA = el('inp-costo-ia');
+          if (inpIA) inpIA.value = costoIASugerido.toFixed(2);
+          var notaIA = el('v-costo-ia-note');
+          if (notaIA) notaIA.textContent = 'Costo IA asignado leído desde runs/workspace';
+          setMotorStatus('conectado_con_datos');
+          recalc();
+        } else {
+          setMotorStatus('conectado_sin_workspace');
+        }
+      });
+    }
+
     updateClock();
     setInterval(updateClock, 1000);
 
@@ -519,28 +607,46 @@
     syncCurrencySelection();
     recalc();
 
-    // Intentar conectar con Motor Agéntico (no bloquea, falla silenciosamente)
-    obtenerDatosMotor().then(function (data) {
-      motorData = data;
-      setMotorStatus(!!data);
+    // Intentar conectar con Motor Agéntico (no bloquea, nunca cae a null silencioso:
+    // siempre resuelve con un estado explícito — conectado / no_disponible / respuesta_invalida).
+    obtenerDatosMotor().then(function (resultado) {
+      motorData = resultado.data;
 
-      // Si el Motor entrega datos de costo IA y no hay sesión guardada, sugerir valor
-      if (data && !hadStoredValues) {
-        var inpIA        = el('inp-costo-ia');
-        var proyectosMes = parseFloat(el('inp-proyectos-mes').value) || 1;
-        var sugerido     = calcularCostoIAAsignadoProyecto(data, proyectosMes, null);
-        if (inpIA && sugerido !== null && sugerido > 0) {
-          inpIA.value = sugerido.toFixed(2);
-          recalc();
-        }
+      if (resultado.status !== 'conectado') {
+        setMotorStatus(resultado.status);
+        return;
       }
+
+      var wsField          = el('inp-motor-workspace');
+      var workspaceNombre  = wsField ? wsField.value : '';
+      var costoIASugerido      = extraerCostoIADeRuns(resultado.data, workspaceNombre);
+      var costosFijosSugeridos = extraerCostosFijosDeSubscripciones(resultado.data);
+
+      // Nunca se sobreescribe una sesión ya restaurada desde localStorage:
+      // el Motor solo autocompleta cuando el usuario parte de valores por defecto.
+      if (!hadStoredValues) {
+        if (costoIASugerido !== null && costoIASugerido > 0) {
+          var inpIA = el('inp-costo-ia');
+          if (inpIA) inpIA.value = costoIASugerido.toFixed(2);
+          var notaIA = el('v-costo-ia-note');
+          if (notaIA) notaIA.textContent = 'Costo IA asignado leído desde runs/workspace';
+        }
+        if (costosFijosSugeridos !== null && costosFijosSugeridos > 0) {
+          var inpFijos = el('inp-costos-fijos');
+          if (inpFijos) inpFijos.value = costosFijosSugeridos.toFixed(2);
+          var notaFijos = el('v-costos-fijos-note');
+          if (notaFijos) notaFijos.classList.remove('hidden');
+        }
+        recalc();
+      }
+
+      setMotorStatus(costoIASugerido !== null && costoIASugerido > 0 ? 'conectado_con_datos' : 'conectado_sin_workspace');
     });
   });
 
   // ── Exponer para onclick en HTML ──────────────────────────────────────────
-  window.loadPreset                      = loadPreset;
-  window.clearPreset                     = clearPreset;
-  window.restaurarDemo                   = restaurarDemo;
-  window.calcularCostoIAAsignadoProyecto = calcularCostoIAAsignadoProyecto;
+  window.loadPreset    = loadPreset;
+  window.clearPreset   = clearPreset;
+  window.restaurarDemo = restaurarDemo;
 
 }());

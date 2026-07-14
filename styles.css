@@ -375,3 +375,4 @@ body {
 .motor-status  { font-size: 10px; }
 .motor-online  { color: var(--green); }
 .motor-offline { color: var(--muted); }
+.motor-partial { color: var(--gold-dim); }

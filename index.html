@@ -47,7 +47,7 @@
         <div class="sec-line"></div>
       </div>
       <div class="sec-title">Precio mínimo rentable</div>
-      <div class="sec-sub">El Motor ya sabe cuánto gastaste en IA. Aquí decides cuánto cobrar para no perder dinero.</div>
+      <div class="sec-sub">El Motor mide tu gasto en IA por separado. Aquí decides cuánto cobrar para no perder dinero.</div>
 
       <!-- Modo demo -->
       <div class="preset-bar">
@@ -104,7 +104,12 @@
             <div class="inp-g">
               <label for="inp-costo-ia">Costo IA asignado al proyecto ($)</label>
               <input type="number" id="inp-costo-ia" value="20" min="0" step="1" />
-              <span class="inp-note">MVP: manual/simulado · Futuro: leído desde Motor Agéntico cuando haya asignación clara</span>
+              <span class="inp-note" id="v-costo-ia-note">MVP: manual/simulado · Futuro: leído desde Motor Agéntico cuando haya asignación clara</span>
+            </div>
+            <div class="inp-g">
+              <label for="inp-motor-workspace">Workspace / carpeta del proyecto (Motor) — opcional</label>
+              <input type="text" id="inp-motor-workspace" placeholder="ej: mi-proyecto" />
+              <span class="inp-note">Integración futura: este campo podrá leerse desde Motor Agéntico cuando exista un endpoint estable disponible. Por ahora funciona en modo manual.</span>
             </div>
             <div class="inp-g">
               <label for="inp-horas">Horas estimadas (h)</label>
@@ -126,6 +131,7 @@
             <div class="inp-g">
               <label for="inp-costos-fijos">Costos fijos mensuales ($)</label>
               <input type="number" id="inp-costos-fijos" value="200" min="0" step="10" />
+              <span class="inp-note hidden" id="v-costos-fijos-note">Costos mensuales sugeridos desde subscriptions</span>
             </div>
             <div class="inp-g">
               <label for="inp-proyectos-mes">Proyectos estimados al mes (#)</label>
@@ -287,7 +293,7 @@
   <!-- Statusbar -->
   <div class="statusbar">
     <span><span class="online">● online</span> · local · ~/margen</span>
-    <span id="v-motor-status" class="motor-status motor-offline">○ Motor offline · modo manual</span>
+    <span id="v-motor-status" class="motor-status motor-offline">○ Verificando Motor… · modo manual</span>
     <span id="v-statusbar-right">—</span>
   </div>
 
